@@ -12,8 +12,8 @@
 
 ### 方式一：下载发布包
 
-1. 前往 [Releases](../../releases/latest)，下载 `suno-downloader-v1.1.1.zip`。
-2. 解压 ZIP，找到包含 `manifest.json` 的 `suno-downloader` 文件夹。
+1. 前往 [Releases](../../releases/latest)，在页面底部 Assets 下载 **Source code (zip)**。
+2. 解压 ZIP，找到包含 `manifest.json` 的文件夹（源码包通常名为 `suno-downloader-1.1.1`）。
 3. 在 Chrome 地址栏输入 `chrome://extensions`，打开右上角「开发者模式」。
 4. 点击「加载已解压的扩展程序」（部分版本显示「加载未打包的扩展程序」），选择上面的文件夹。
 5. 打开或刷新 [Suno](https://suno.com)，右下角出现「⬇ Suno 下载」即安装完成。
