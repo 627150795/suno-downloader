@@ -1,0 +1,10 @@
+.DS_Store
+._*
+*.m4a
+*.mp3
+*.wav
+*.crx
+*.pem
+*.zip
+.env*
+node_modules/
