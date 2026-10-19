@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Suno 下载器",
+  "version": "1.1.1",
+  "description": "扫描 Suno 页面歌曲列表，将本人或已获授权作品的播放源音频保存为 M4A，无录音、无转码。",
+  "permissions": ["cookies"],
+  "host_permissions": [
+    "https://suno.com/*",
+    "https://studio-api-prod.suno.com/*",
+    "https://d2lwuy8qc234o3.cloudfront.net/*",
+    "https://cdn1.suno.ai/*",
+    "https://cdn2.suno.ai/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://suno.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
