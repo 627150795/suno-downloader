@@ -1,4 +1,6 @@
-# Suno 下载器 · Chrome 扩展
+# Suno Downloader · Suno 下载器 · Chrome 扩展
+
+**简体中文** | [English](README.en.md)
 
 在 Suno 网页右下角打开歌曲列表，将**本人或已获授权作品**的播放源音频保存为 `.m4a`，方便个人备份。
 
@@ -6,7 +8,7 @@
 
 **当前版本：v1.1.1 · Manifest V3 · 无需构建、无需安装依赖。**
 
-> A minimal Manifest V3 Chrome extension that lists songs on Suno pages and saves playback-source M4A audio for your own or authorized works. No recording or transcoding.
+> **Suno Downloader** is a lightweight Chrome extension (Manifest V3) that discovers song links on suno.com and saves playback-source audio as M4A (Opus-in-MP4) for your own or authorized works. It provides a song list, cover art and metadata, with no recording, transcoding or build step. See the [English README](README.en.md) for installation, permissions and guidance for coding agents.
 
 ## 安装
 
