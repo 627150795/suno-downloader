@@ -2,18 +2,18 @@
 
 [简体中文](README.md) | **English**
 
-**Suno Downloader** is a lightweight Chrome extension built with **Manifest V3**. It discovers song links already loaded on the current **suno.com** page and saves playback-source audio as **M4A (Opus-in-MP4)** for your own music or works you are authorized to download.
+**Suno Downloader** is a lightweight Chrome extension built with **Manifest V3**. It discovers song links already loaded on the current **suno.com** page and saves playback-source audio as **M4A or WebM (Opus)** for your own music or works you are authorized to download.
 
 Use the floating song-list panel to view cover art, titles, authors, duration and style, then download individual tracks for personal backup. Audio is saved without recording or transcoding; this does not make it a lossless master, WAV export or stem download.
 
-**Extension version: v1.1.1. No build step or third-party dependencies.**
+**Extension version: v1.1.2. No build step or third-party dependencies.**
 
 ## Features
 
 - Discover and deduplicate song links on the current Suno page.
 - Keep the current song at the top of the list.
 - Show song metadata and cover art.
-- Save individual playback-source audio files as `.m4a`.
+- Save individual playback-source audio files as `.m4a` or `.webm`.
 - Process audio locally in the browser using the Web Crypto API.
 - Use the supported signed-in or guest playback flow, subject to Suno's current permissions and service restrictions.
 
@@ -41,7 +41,7 @@ The extension rescans loaded page links approximately every two seconds. Scrolli
 | Permission or host | Purpose |
 | --- | --- |
 | `cookies` and `suno.com` | Read the current Suno `__session` cookie when requesting a track's playback key |
-| `studio-api-prod.suno.com` | Request song metadata and playback-key material |
+| `suno.com/a` | Request song metadata and playback-key material |
 | The specified CloudFront host, `cdn1.suno.ai`, `cdn2.suno.ai` | Fetch playback-source audio |
 
 Session material is used at runtime for requests to Suno and local processing. It is not written to extension storage or sent to the project author. The extension has no project-operated server, analytics service or remote script loader. Scanning a page makes metadata requests to Suno, and cover art loads from its associated image URLs.
@@ -69,16 +69,25 @@ Run the offline checks with Node.js:
 node test.js
 ```
 
-Checks cover cached-metadata reuse, message senders, the CDN allowlist, redirect rejection and binary transfer. They do not verify live Suno availability. After editing the extension, reload it in `chrome://extensions`, then refresh Suno.
+Checks cover M4A/WebM downloads, encrypted/plain audio, signed-in/guest key material, cached-metadata reuse, message senders, the CDN allowlist, redirect rejection and binary transfer. They do not verify live Suno availability. After editing the extension, reload it in `chrome://extensions`, then refresh Suno.
 
 ## Limitations
 
 - Private, deleted, unfinished or unauthorized tracks may not be downloadable. Public playback does not grant copyright or reuse permission.
 - This is an unofficial implementation based on the web playback flow; Suno interface or API changes may break it.
 - Only song links already loaded in the page are discovered.
-- Output is playback-source M4A; there is no MP3 conversion, WAV export or stem separation. Player compatibility depends on Opus-in-MP4 support.
+- Output is playback-source M4A or WebM; there is no MP3 conversion, WAV export or stem separation. Player compatibility depends on support for the selected Opus container.
 - A valid MP4 `ftyp` header is only a basic container check; it does not prove completeness, playability or codec type.
 - Audio is processed in memory and may encounter browser-memory or extension-message limits.
+
+## v1.1.2
+
+- Follow the current same-origin `/a/api` endpoints.
+- Select complete progressive M4A/WebM sources and save plain audio directly.
+- Wait for metadata before downloading and allow failed metadata requests to retry.
+- Add offline encryption and download regression checks.
+
+Validation includes a public V6 track's live metadata, rights and CDN responses, plus browser song discovery, key retrieval and file saving with the previously fetched CDN bytes replayed through the messaging bridge. The saved 189.2-second Opus file passed full decoding. Installed-extension end-to-end testing and signed-in account testing remain pending. WebM is covered by synthetic offline checks.
 
 ## License and responsible use
 

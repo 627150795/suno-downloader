@@ -3,16 +3,26 @@
 //   1. 扫描页面里所有 /song/<uuid> 链接，逐首通过 /api/clip/<id> 补齐封面/作者/时长
 //   2. 点下载：POST /api/mango/rights 换取 AES-GCM 加密的 key/iv（匿名用户用返回的 glt）
 //   3. KEK = SHA-256(JWT 或 glt)，解包出 AES-CTR 的 key/iv（aad = 歌曲 id）
-//   4. 由 background 拉 CDN 加密 m4a（页面上下文受 CORS 限制），本地 AES-CTR 解密
-//   5. 得到 Opus-in-MP4 原始音质文件，直接保存 .m4a（无录音、无转码、无音质损失）
+//   4. 由 background 拉 CDN 加密音频（页面上下文受 CORS 限制），本地 AES-CTR 解密
+//   5. 得到原始音频文件，按容器保存 .m4a 或 .webm（无录音、无转码、无音质损失）
 (function () {
-  const API = "https://studio-api-prod.suno.com";
+  const API = "https://suno.com/a";
   const PANEL_ID = "suno-dl-panel";
   const BTN_ID = "suno-dl-btn";
   const ROW_ID = (id) => "suno-dl-row-" + id;
 
   const b64ToBytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   const isFtyp = (u8) => u8.length > 8 && u8[4] === 102 && u8[5] === 116 && u8[6] === 121 && u8[7] === 112; // "ftyp"
+  const isWebm = (u8) => u8.length >= 4 && u8[0] === 26 && u8[1] === 69 && u8[2] === 223 && u8[3] === 163;
+  function selectMedia(meta) {
+    const media = meta.media_urls || [];
+    // ponytail: only complete progressive audio can be saved as a single file.
+    for (const type of ["m4a-opus", "webm-opus"]) {
+      const source = media.find((item) => item.content_type === type && item.delivery === "progressive");
+      if (source) return source;
+    }
+    throw new Error("没有可下载的完整 M4A/WebM 音频，请等待歌曲生成完成");
+  }
   const fmtDur = (s) => {
     if (!s || !isFinite(s)) return "";
     const m = Math.floor(s / 60), sec = Math.round(s % 60);
@@ -26,66 +36,64 @@
   }
 
   async function downloadSong(id, onStatus) {
-    onStatus("获取密钥…");
-    const jwt = await getSession();
-    const headers = { "Content-Type": "application/json" };
-    if (jwt) headers["Authorization"] = "Bearer " + jwt;
-    const rightsRes = await fetch(`${API}/api/mango/rights`, {
-      method: "POST", headers, credentials: "include",
-      body: JSON.stringify({ content_params: { content_id: id, content_type: "clip" } }),
-    });
-    if (!rightsRes.ok) throw new Error("密钥接口失败 (" + rightsRes.status + ")");
-    const rights = await rightsRes.json();
-
-    const kekInput = jwt || rights.glt;
-    if (!kekInput) throw new Error("拿不到密钥素材（未登录且匿名额度受限？）");
-
-    const kek = await crypto.subtle.importKey(
-      "raw",
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(kekInput)),
-      { name: "AES-GCM" }, false, ["decrypt"]
-    );
-    const unwrap = async (b64) => {
-      const w = b64ToBytes(b64);
-      return new Uint8Array(await crypto.subtle.decrypt(
-        { name: "AES-GCM", iv: w.slice(0, 12), additionalData: new TextEncoder().encode(id) },
-        kek, w.slice(12)
-      ));
-    };
-    const keyRaw = await unwrap(rights.key);
-    const ivRaw = await unwrap(rights.iv);
-
+    const meta = await loadMeta(id);
+    if (!meta) throw new Error("歌曲信息获取失败，请检查登录状态或作品权限后重试");
+    const media = selectMedia(meta);
+    const extension = media.content_type === "webm-opus" ? "webm" : "m4a";
+    const validAudio = extension === "webm" ? isWebm : isFtyp;
     onStatus("下载音频…");
-    let meta = metaCache.get(id);
-    if (meta && typeof meta.then === "function") meta = await meta;
-    if (!meta) meta = {};
-    const mediaUrl =
-      (meta.media_urls && meta.media_urls[0] && meta.media_urls[0].url) ||
-      `https://d2lwuy8qc234o3.cloudfront.net/1/clip/${id}.m4a`;
-    const encB64 = await chrome.runtime.sendMessage({ type: "fetchBin", url: mediaUrl });
+    const encB64 = await chrome.runtime.sendMessage({ type: "fetchBin", url: media.url });
     if (!encB64) throw new Error("音频下载失败（网络或权限问题）");
     const enc = b64ToBytes(encB64);
 
     let out = enc;
-    if (!isFtyp(enc)) {
+    if (!validAudio(enc)) {
+      onStatus("获取密钥…");
+      const jwt = await getSession();
+      const headers = { "Content-Type": "application/json" };
+      if (jwt) headers["Authorization"] = "Bearer " + jwt;
+      const rightsRes = await fetch(`${API}/api/mango/rights`, {
+        method: "POST", headers, credentials: jwt ? "same-origin" : "include",
+        body: JSON.stringify({ content_params: { content_id: id, content_type: "clip" } }),
+      });
+      if (!rightsRes.ok) throw new Error("密钥接口失败 (" + rightsRes.status + ")");
+      const rights = await rightsRes.json();
+
+      const kekInput = jwt || rights.glt;
+      if (!kekInput) throw new Error("拿不到密钥素材（未登录且匿名额度受限？）");
+
+      const kek = await crypto.subtle.importKey(
+        "raw",
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(kekInput)),
+        { name: "AES-GCM" }, false, ["decrypt"]
+      );
+      const unwrap = async (b64) => {
+        const w = b64ToBytes(b64);
+        return new Uint8Array(await crypto.subtle.decrypt(
+          { name: "AES-GCM", iv: w.slice(0, 12), additionalData: new TextEncoder().encode(id) },
+          kek, w.slice(12)
+        ));
+      };
+      const keyRaw = await unwrap(rights.key);
+      const ivRaw = await unwrap(rights.iv);
       onStatus("解密中…");
       const key = await crypto.subtle.importKey("raw", keyRaw, { name: "AES-CTR" }, false, ["decrypt"]);
       out = new Uint8Array(await crypto.subtle.decrypt(
         { name: "AES-CTR", counter: ivRaw, length: 128 }, key, enc
       ));
-      if (!isFtyp(out)) throw new Error("解密校验失败（格式不符）");
+      if (!validAudio(out)) throw new Error("解密校验失败（格式不符）");
     }
 
     const title = ((meta.title) || id).replace(/[\\/:*?"<>|]/g, "_");
-    const blob = new Blob([out], { type: "audio/mp4" });
+    const blob = new Blob([out], { type: extension === "webm" ? "audio/webm" : "audio/mp4" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = title + ".m4a";
+    a.download = title + "." + extension;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-    onStatus("✓ 已保存 " + title + ".m4a");
+    onStatus("✓ 已保存 " + title + "." + extension);
   }
 
   // ---------- 歌曲元数据 ----------
@@ -95,7 +103,7 @@
     const p = fetch(`${API}/api/clip/${id}`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .catch(() => null)
-      .then((j) => { if (j) metaCache.set(id, j); return j; });
+      .then((j) => { if (j) metaCache.set(id, j); else metaCache.delete(id); return j; });
     metaCache.set(id, p);
     return p;
   }

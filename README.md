@@ -2,20 +2,20 @@
 
 **简体中文** | [English](README.en.md)
 
-在 Suno 网页右下角打开歌曲列表，将**本人或已获授权作品**的播放源音频保存为 `.m4a`，方便个人备份。
+在 Suno 网页右下角打开歌曲列表，将**本人或已获授权作品**的播放源音频保存为 `.m4a` 或 `.webm`，方便个人备份。
 
 自动识别当前页面中的歌曲链接，显示封面、歌名、作者、时长和风格；点击每首歌曲旁的「下载」即可保存。扩展不录音、不转码，保留获取到的播放源音频，不代表下载的是无损母带、WAV 或分轨文件。
 
-**当前版本：v1.1.1 · Manifest V3 · 无需构建、无需安装依赖。**
+**当前版本：v1.1.2 · Manifest V3 · 无需构建、无需安装依赖。**
 
-> **Suno Downloader** is a lightweight Chrome extension (Manifest V3) that discovers song links on suno.com and saves playback-source audio as M4A (Opus-in-MP4) for your own or authorized works. It provides a song list, cover art and metadata, with no recording, transcoding or build step. See the [English README](README.en.md) for installation, permissions and guidance for coding agents.
+> **Suno Downloader** is a lightweight Chrome extension (Manifest V3) that discovers song links on suno.com and saves playback-source audio as M4A/WebM (Opus) for your own or authorized works. It provides a song list, cover art and metadata, with no recording, transcoding or build step. See the [English README](README.en.md) for installation, permissions and guidance for coding agents.
 
 ## 安装
 
 ### 方式一：下载发布包
 
 1. 前往 [Releases](../../releases/latest)，在页面底部 Assets 下载 **Source code (zip)**。
-2. 解压 ZIP，找到包含 `manifest.json` 的文件夹（源码包通常名为 `suno-downloader-1.1.1`）。
+2. 解压 ZIP，找到包含 `manifest.json` 的文件夹（源码包通常名为 `suno-downloader-1.1.2`）。
 3. 在 Chrome 地址栏输入 `chrome://extensions`，打开右上角「开发者模式」。
 4. 点击「加载已解压的扩展程序」（部分版本显示「加载未打包的扩展程序」），选择上面的文件夹。
 5. 打开或刷新 [Suno](https://suno.com)，右下角出现「⬇ Suno 下载」即安装完成。
@@ -30,7 +30,7 @@
 
 1. 打开歌曲页、个人主页或包含歌曲链接的 Suno 页面。
 2. 点击右下角「⬇ Suno 下载」，查看自动扫描到的歌曲列表。
-3. 在目标歌曲右侧点击「下载」，等待获取密钥、下载音频和格式校验完成。
+3. 在目标歌曲右侧点击「下载」，等待下载音频、按需获取密钥和格式校验完成。
 4. 文件通过浏览器下载，保存位置由 Chrome 的下载设置决定；若设置了「每次下载前询问保存位置」，请选择保存路径。
 
 当前歌曲会置顶，页面歌曲链接约每 2 秒重新扫描一次。列表只包含页面已经加载的链接；滚动页面后可能出现更多歌曲。当前版本逐首下载，没有「全部下载」按钮。
@@ -44,7 +44,7 @@
 | 权限 / 域名 | 用途 |
 | --- | --- |
 | `cookies` + `suno.com` | 按需读取 Suno 的 `__session` 登录 Cookie，向 Suno 请求当前作品的播放密钥 |
-| `studio-api-prod.suno.com` | 获取歌曲元数据和播放密钥 |
+| `suno.com/a` | 获取歌曲元数据和播放密钥 |
 | 指定 CloudFront CDN、`cdn1.suno.ai`、`cdn2.suno.ai` | 获取播放源音频数据 |
 
 Cookie 和令牌只在运行时参与向 Suno 的请求及本地处理，不写入扩展存储，不发送给项目作者。扩展没有自建服务器、统计服务或远程脚本；音频在浏览器本地处理。打开 Suno 页面后，扩展会向 Suno 请求当前扫描歌曲的元数据，封面也由对应图片地址加载。
@@ -55,16 +55,16 @@ Cookie 和令牌只在运行时参与向 Suno 的请求及本地处理，不写�
 
 - 内容脚本扫描页面中的 `/song/<uuid>` 链接，去重并补齐歌曲信息。
 - 按官方播放器对应的接口流程获取播放密钥，在浏览器内使用 Web Crypto API 处理音频数据。
-- 后台 service worker 从已允许的 CDN 获取音频，内容脚本校验 MP4 `ftyp` 文件头后保存为 `.m4a`。
+- 后台 service worker 从已允许的 CDN 获取音频，内容脚本校验 MP4 `ftyp` 或 WebM EBML 文件头后保存为 `.m4a` 或 `.webm`。
 
-获取到的样本为 Opus-in-MP4。`ftyp` 仅是基础容器识别，不能单独证明音频完整、可播放或编码类型；播放器是否兼容还取决于其 Opus-in-MP4 支持情况。
+支持 Opus-in-MP4 和 Opus-in-WebM。`ftyp` 仅是基础容器识别，不能单独证明音频完整、可播放或编码类型；播放器是否兼容还取决于其对相应 Opus 容器的支持情况。
 
 ## 已知限制与排查
 
 - 私密、已删除、未生成完成或当前账户无权访问的歌曲可能无法下载；公开可播放不等于获得作品使用权。
 - 接口和加密处理来自对网页播放流程的分析，属于非官方实现；Suno 更新后可能失效。
 - 页面没有加载的歌曲不会列出；不能扫描整个账户或所有播放列表。
-- 下载为 `.m4a`，没有 MP3、WAV、无损音频或分轨导出功能。
+- 下载为 `.m4a` 或 `.webm`，没有 MP3、WAV、无损音频或分轨导出功能。
 - 大文件在内存中整体处理，可能受浏览器内存及扩展消息大小限制。
 - 若没有按钮，确认扩展已启用并刷新 Suno 页面；若下载失败，检查登录、网络和作品权限。
 - 更新源码后，到 `chrome://extensions` 点击本扩展的重新加载按钮，再刷新 Suno 页面。
@@ -84,9 +84,18 @@ test.js        无外部依赖的离线回归检查
 node test.js
 ```
 
-离线检查覆盖元数据缓存重复读取、后台消息来源和 CDN 地址限制，不替代 Suno 在线下载测试。
+离线检查覆盖 M4A/WebM 下载、加密及未加密音频、登录及访客密钥、元数据缓存、后台消息来源和 CDN 地址限制，不替代 Suno 在线下载测试。
 
 ## 更新记录
+
+### v1.1.2
+
+- 跟随新版网页使用同源 `/a/api` 接口。
+- 选择完整渐进音频源，支持 M4A/WebM，避免误取流式地址。
+- 下载前等待元数据，元数据请求失败允许重试，未加密音频直接保存。
+- 增加真实下载函数的离线加解密回归检查。
+
+验证范围包括公开 V6 歌曲的实际元数据、密钥和 CDN 响应，以及浏览器中的歌曲识别、密钥获取和文件保存。浏览器测试通过消息桥接回放此前下载的 CDN 数据，保存的 189.2 秒 Opus 文件通过完整解码。安装扩展后的端到端测试和登录账户场景仍待验证，WebM 已通过离线合成数据检查。
 
 ### v1.1.1
 
